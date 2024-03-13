@@ -15,3 +15,9 @@ srh有两个关键信息，首先是ipV6地址形式的Segment list。进行有�
 如果节点出现SrV6，且出现在了segment list中。那么就要处理rsh，将segment left进行-1操作。然后将新的segment list信息复制到IPv6目的地址字段。将报文向下一个节点进行转发。
 
 当segment left字段减为零时，节点可以弹出srh报文头，然后对报文进行下一步处理。
+
+## segment routing的技术特点
+* 源路由：网络拓扑信息和业务都被编码在数据包的包头中
+* 可扩展性：网络fabric不保留TE或NFV使用的任何flow状态
+* 简化：协议简化，去除LDP、RSVP-TE、VxLAN等
+* 端到端：DC、Metro、WAN
