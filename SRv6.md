@@ -96,6 +96,9 @@ IPv4数据包本身不支持SRv6，但SRv6中可以承载IPv4报文。
 * 提供高保护效率的FRR保护能力：在SRv6技术的基础上结合RLFA FRR实现高效的TI-LFA FRR算法（同SR-MPLS）
 
 > 参考：
+> 
 > <https://blog.csdn.net/weixin_43991442/article/details/125324404>
+> 
 > <https://www.sdnlab.com/23735.html>
+> 
 > <https://blog.csdn.net/m0_49864110/article/details/123591943>
