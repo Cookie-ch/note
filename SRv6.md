@@ -22,8 +22,7 @@ SRv6的原理可以简要描述如下：
 
 Net Header取值：4 ——IPv4封装，41——IPv6封装，43——IPv6-Route（IPv6路由扩展头），58——ICMPv6，59——Next Header为空
 
-srv6网络节点：
-
+**srv6网络节点：**
 头节点
 ![头节点](https://github.com/Cookie-ch/note/assets/79464052/d1618f3e-bc96-4322-a2be-8f882b70b21f)
 
@@ -41,11 +40,11 @@ srh有两个关键信息：
 * 另外一个关键字段是Segment left （sl）。Segment left是一个指针，指针它指向当前活跃的一个list，它的初始值是0，表示从列表的第一个路由段开始，每次经过一个节点，SL的值就减1，直到减到0为止。SL的最大值是Segment List长度减1，即最后一个路由段的位置。
 在srv6里ipv6的目的地址sl字段是一个不断变化的字段。当指针指向当前活跃的list时，需要将list的ipv6地址复制到ipv6目的地址字段。
 
-* 在SRv6的网络节点处理过程中，如果节点支持SRv6，它将检查SL的值。如果SL指向的是当前节点所对应的路由段，节点将执行以下操作：
-  1. 将SL值减1，更新SL字段。
-  2. 将新的Segment List信息复制到IPv6目的地址字段，即将当前路由段的IPv6地址作为新的目的地。
-  3. 将数据包转发给下一个节点。
-* 如果有一个转发节点不支持ipv6，那么不需要处理ipv6报文里的srh信息。仅依据ipv6目的地址字段查找ipv6路由表，进行普通转发。
+> * 在SRv6的网络节点处理过程中，如果节点支持SRv6，它将检查SL的值。如果SL指向的是当前节点所对应的路由段，节点将执行以下操作：
+>   1. 将SL值减1，更新SL字段。
+>   2. 将新的Segment List信息复制到IPv6目的地址字段，即将当前路由段的IPv6地址作为新的目的地。
+>   3. 将数据包转发给下一个节点。
+> * 如果有一个转发节点不支持ipv6，那么不需要处理ipv6报文里的srh信息。仅依据ipv6目的地址字段查找ipv6路由表，进行普通转发。
 
 当Segment Left字段减为零时，节点会弹出SRH报文头，然后对报文进行进一步的处理，这可能包括查找传统的IPv6路由表中的下一跳地址，或者如果报文已经达到了最终目的地，则进行相应的终节点处理。
 
@@ -58,9 +57,13 @@ SID（Segment Identifier）由locator、function、argument三部分组成，这
 
 > **注：**
 >  路由器收到SID，先判断Locator，如果发现Locator是本机发布的，那就去处理Function指令（可以将Locator理解为前缀，在转发时使用；Funcation只有到达目的节点（到达响应Locator前缀对应的节点）之后才会查看）
+> 
 > 严格意义上来说Segment List并不是IPv6地址，只是以IPv6地址的形式存在
+> 
 > 只有将Segment List拷贝到IPv6报文的Destination Address字段中的才是IPv6地址
+> 
 > 一台设备只有一个Locator，并且全网唯一
+> 
 > 一台设备可以有多个Function，并且只需要保证本地唯一就可以
 
 
@@ -81,11 +84,11 @@ IPv4数据包本身不支持SRv6，但SRv6中可以承载IPv4报文。
 
 上图展示了SRv6转发的一个范例。在这个范例中，结点R1要指定路径（需要通过R2-R3、R4-R5的链路转发）转发到R6，其中R1、R2、R4、R6为有SRv6能力的的设备，R3、R5为不支持SRv6的设备。
 
-步骤一：Ingress结点处理：R1将SRv6路径信息封装在SRH扩展头，指定R2和R4的END.X SID，同时初始化SL = 2，并将SL指示的SID A2::11拷贝到外层IPv6头目的地址。R1根据外层IPv6目的地址查路由表转发到R2。
-步骤二：End Point结点处理：R2收到报文以后，根据外层IPv6地址A2::11查找本地Local SID表，命中END.X SID，执行END.X SID的指令动作：SL—，并将SL指示的SID拷贝到外层IPv6头目的地址，同时根据END.X关联的下一跳转发。
-步骤三：Transit结点处理：R3根据A4::13查IPv6路由表进行转发，不处理SRH扩展头。具备普通的IPv6转发能力即可。
-步骤四：End Point结点处理：R4收到报文以后，根据外层IPv6地址A4::13查找本地Local SID表，命中END.X SID，执行END.X SID的指令动作：SL—，并将SL指示的SID拷贝到外层IPv6头目的地址，由于SL = 0, 弹出SRH扩展头，同时根据END.X关联的下一跳转发。
-步骤5：弹出SRH扩展头以后，报文就变成普通的IPv6头，由于A6::1是1个正常的IPv6地址，遵循普通的IPv6转发到R6。
+1. 步骤一：Ingress结点处理：R1将SRv6路径信息封装在SRH扩展头，指定R2和R4的END.X SID，同时初始化SL = 2，并将SL指示的SID A2::11拷贝到外层IPv6头目的地址。R1根据外层IPv6目的地址查路由表转发到R2。
+2. 步骤二：End Point结点处理：R2收到报文以后，根据外层IPv6地址A2::11查找本地Local SID表，命中END.X SID，执行END.X SID的指令动作：SL—，并SL指示的SID拷贝到外层IPv6头目的地址，同时根据END.X关联的下一跳转发。
+3. 步骤三：Transit结点处理：R3根据A4::13查IPv6路由表进行转发，不处理SRH扩展头。具备普通的IPv6转发能力即可。
+4. 步骤四：End Point结点处理：R4收到报文以后，根据外层IPv6地址A4::13查找本地Local SID表，命中END.X SID，执行END.X SID的指令动作：SL—，并将SL指示的SID拷贝到外层IPv6头目的地址，由于SL = 0, 弹出SRH扩展头，同时根据END.X关联的下一跳转发。
+5. 步骤五：弹出SRH扩展头以后，报文就变成普通的IPv6头，由于A6::1是1个正常的IPv6地址，遵循普通的IPv6转发到R6。
 
 ## segment routing的技术特点
 * 纯IP化：基于Native IPv6转发，SRv6通过扩展报文头实现，没有改变IPv6封装结构，SRv6报文依然是IPv6报文，兼容IPv6设备，网络拓扑信息和业务都被编码在数据包的包头中
