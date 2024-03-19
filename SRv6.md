@@ -90,7 +90,7 @@ IPv4数据包本身不支持SRv6，但SRv6中可以承载IPv4报文。
 4. 步骤四：End Point结点处理：R4收到报文以后，根据外层IPv6地址A4::13查找本地Local SID表，命中END.X SID，执行END.X SID的指令动作：SL—，并将SL指示的SID拷贝到外层IPv6头目的地址，由于SL = 0, 弹出SRH扩展头，同时根据END.X关联的下一跳转发。
 5. 步骤五：弹出SRH扩展头以后，报文就变成普通的IPv6头，由于A6::1是1个正常的IPv6地址，遵循普通的IPv6转发到R6。
 
-## segment routing的技术特点
+## SRv6技术的特点
 * 纯IP化：基于Native IPv6转发，SRv6通过扩展报文头实现，没有改变IPv6封装结构，SRv6报文依然是IPv6报文，兼容IPv6设备，网络拓扑信息和业务都被编码在数据包的包头中
 * 可扩展性：可编程
 * 简化：协议简化，去除LDP、RSVP-TE、VxLAN等
