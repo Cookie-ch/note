@@ -9,7 +9,7 @@ VXLAN是Overlay技术的一种，VXLAN通过隧道机制在现有网络上构建
 
 VLAN的作用是从逻辑上隔离局域网中的设备，VXLAN是将两个局域网打通
 
-**VTEP**（Virtual Tunnel Endpoint）是VXLAN隧道端点，是VXLAN的边缘设备，VXLAN的相关处理都在VTEP上进行。它主要负责在物理网络与虚拟网络之间进行数据包的封装和解封装，从而实现跨物理网络的虚拟网络通信。如物理交换机、虚拟交换机、等，可以是独立的物理设备或虚机所在的服务器
+**VTEP**（Virtual Tunnel Endpoint）是VXLAN隧道端点，是VXLAN的边缘设备，用于VXLAN报文的封装和解封装。如物理交换机、虚拟交换机、等，可以是独立的物理设备或虚机所在的服务器
 VTEP只支持VXLAN二层转发功能的设备，只能在相同VXLAN内进行二层转发
 
 ## VXLAN的优势
@@ -33,7 +33,7 @@ VTEP只支持VXLAN二层转发功能的设备，只能在相同VXLAN内进行二
 * VXLAN头（8字节）
   * 标记位8bit，其中I位为1时，表示VXLAN头中的VXLAN ID有效
   * VXLAN ID（24bit），又称VNI，网络标识符，不同VXLAN网络中的用户终端不能二层互通
-  * Reserved，协议保留位
+  * Reserved（8bit），协议保留位
 * 原始二层数据，虚机发送的原始以太报文
 
 ![image](https://github.com/Cookie-ch/note/assets/79464052/64a062f0-9114-4513-96eb-28be31d3c628)
@@ -44,19 +44,35 @@ VTEP只支持VXLAN二层转发功能的设备，只能在相同VXLAN内进行二
 虚机网关在虚拟交换机上时，不会封装外层MAC头
 ![image](https://github.com/Cookie-ch/note/assets/79464052/a48839b5-18be-4bad-b557-e3c0509eb53e)
 
-## VSI
+## 一些特定名词
+### BD
+BD：桥域（Bridge Domain），类似传统网络中采用VLAN划分广播域，在VXLAN网络中一个BD标识一个大二层广播域
+
+### VBDIF
+VBDIF：类似于VLANIF。VBDIF接口在VXLAN三层网关上配置，是基于BD创建的三层逻辑接口
+
+通过VBDIF接口可以实现不同网段的用户通过VXLAN网络通信，以及VXLAN网络和非VXLAN网络之间的同学，也可以实现二层网络接入三层网络
+
+### VAP
+VAP：虚拟接入点（Virtual Access Point），实现VXLAN的业务接入。
+
+VAP有两种配置方式：
+二层子接口方式接入，例如在sw1创建二层子接口关联BD10，则这个子接口下的特定流量会被注入到BD10
+VLAN绑定方式接入，例如在sw2配置VLAN10与广播域BD10关联，则所有VLAN10的流量会被注入到BD10
+
+### VSI
 VSI：虚拟交换实例（Virtual Switch Instance），是在虚拟交换机上创建的逻辑实体。可以把同一个VSI的VXLAN网络看做一个大二层VXLAN Domain
 
 每个 VSI 可以看作是一个独立的逻辑交换机，具有自己的端口、VLAN 设置和交换规则。在虚拟化环境中，多个 VSI 可以共享同一个物理交换机，并且能够隔离不同的虚拟网络流量
 
 VSI具备传统以太网交换机的所有功能，如MAC地址表、老化机制等。VSI与VXLAN需一一对应
 
-## VSI-Interface
+### VSI-Interface
 VSI ：虚拟交换接口（Virtual Switch Interface），这是指连接虚拟交换机和物理网络设备（如物理交换机或路由器）的逻辑接口。是VXLAN内虚拟机的网关，用于处理跨VXLAN网络的报文转发
 
 一个VXLAN网络对应一个VSI-Interface
 
-## AC
+### AC
 AC：接入链路（Attachment Circuit），就是接入链路，接入VTEP的逻辑链路。也称以太网服务实例（Service Instannce），指定该服务的感兴趣数据流（通常基于VLAN），指定感兴趣六在哪个VSI中转发
 ![image](https://github.com/Cookie-ch/note/assets/79464052/72b256fb-f65b-4e36-9bf3-d43b9d714eac)
 
@@ -64,6 +80,22 @@ AC：接入链路（Attachment Circuit），就是接入链路，接入VTEP的�
 ![image](https://github.com/Cookie-ch/note/assets/79464052/9e3e5bec-843f-4f1e-a6d3-8826e709b97b)
 ![image](https://github.com/Cookie-ch/note/assets/79464052/3e733c41-fc9a-4aef-a336-39c9e26e7b7d)
 
+### VXLAN MAC地址表项
+VXLAN实现的是在overlay网络中进行二层转发，转发单播数据帧依赖的是MAC地址表项
+
+VTEP接收到BD内来自本地的数据帧，将数据帧的源MAC地址添加到该BD的MAC地址表中，出接口为收到数据帧的接口
+
+该表项用于指导发往本VTEP下连接终端的数据帧的转发
+
+![image](https://github.com/Cookie-ch/note/assets/79464052/c147d821-df55-424f-a935-d83f6f77257f)
+![image](https://github.com/Cookie-ch/note/assets/79464052/1b7ed03d-c8b5-408f-b495-7e18cb41257b)
+
+### MAC地址动态学习
+转发属于远端VTEP下所连接设备的数据帧，需要先学习到远端设备的MAC地址
+该过程与传统MAC地址表形成过程类似
+![image](https://github.com/Cookie-ch/note/assets/79464052/3dc93f3d-87ef-4f88-b794-8286c78a7c92)
+
+![image](https://github.com/Cookie-ch/note/assets/79464052/63991d2b-12bd-476c-aeca-081996fc5810)
 
 
 ## VXLAN运行机制
@@ -80,26 +112,43 @@ IP Gateway三层转发模式，VTEP设备通过查找**ARP表项**对流量进�
 
 
 ### VXLAN隧道的建立与关联
-发现远端VTEP，在VTEP之间建立VXLAN隧道，并将VXLAN隧道与VXLAN关联
-#### VXLAN隧道建立的方式
-**手动** ：手动配置Tunnel接口，并指定隧道的源和目的IP地址分别为双方VTEP的IP地址
+VXLAN隧道由一堆VTEP确定，报文在VTEP设备进行封装之后再VXLAN隧道中依靠路由进行传输。只要VXLAN隧道的两端VTEP是三层路由可达的，VXLAN隧道就可以建立成功
 
-**自动** ：通过EVNP（以太网虚拟专用网络）发现对端VTEP后，自动建立VXLAN隧道
+#### VXLAN隧道建立的方式
+**静态隧道：** 通过用户手动配置本端和对端的VNI、VTEP地址和头端复制列表来完成
+![image](https://github.com/Cookie-ch/note/assets/79464052/d0d5b05b-7da5-4a44-85fd-d449e9193655)
+
+
+**动态隧道：** 通过BGP EVNP（以太网虚拟私有网络）方式，在VTEP之间建立BGP EVPN对等体，然后对等体之间利用BGP EVPN路由来互相传递VNI和VTEP IP，自动建立VXLAN隧道
 
 #### VXLAN对到与VXLAN关联的方式
 **手动** ：手动将VXLAN隧道与VXLAN关联
 
 **自动** ：通过EVPN协议自动将VXLAN隧道与VXLAN关联
 
-### 识别VXLAN
-识别接收到的VXLAN，将报文的源MAC地址学习到的VXLAN对应到VSI，并在该VSI内转发该报文
+## 配置
+> 静态隧道实验：<https://www.bilibili.com/video/BV11G411r7Ux?p=4&spm_id_from=pageDriver&vd_source=9a5a23788869349258fb86060e91a4a9>
+### VXLAN接入配置
+创建BD
+```
+bridge-domain 10
+```
 
-识别方式有两种：
+创建子接口:G1/0/2收到vlan10的报文，则将报文关联到BD10
+```
+interface gigabitethernet 1/0/2
+port link-type trunk
+interface gigabitethernet 1/0/2.1 mode l2       // 创建子接口
+encapsulation dot1q vid 10                      //子接口和vlan10关联
+bridge-domain 10                                //子接口和BD关联
+```
 
-**本地站点内接收到数据帧的识别方式：**
-* 三层口与VSI关联：该三层口接收到的数据帧均属于指定的VSI，VSI内创建的VXLAN即为数据帧所属的VXLAN
-* 以太网服实例与VSI关联：以太网服务实例定义一系列匹配规则
-* VLAN与VXLAN关联：VTEP接收到的该VLAN的数据帧均属于执行的VXLAN
-
-**VXLAN隧道上接收报文的识别方式：**
-VTEP根据报文中携带的VXLAN ID判断该报文所属的VXLAN
+### VXLAN隧道配置
+属于BD10的报文，将打上VNI100的VXLAN标识，并封装上源地址为1.1.1.1，目的地址为2.2.2.2的新IP头部，发到对端VNE
+```
+bridge-domian 10    //进入BD10配置视图
+vxlan vni 100       //将BD10和VNI100进行关联
+interface vne 1     //创建VXLAN隧道，编号为1
+source 1.1.1.1
+vni 100 head-end peer-list 2.2.2.2    //隧道目的IP
+```
