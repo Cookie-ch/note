@@ -62,8 +62,8 @@ VNI以1:1的方式映射到广播域BD
 ### L2 Gateway
 L2 Gateway二层转发模式，VTEP通过查找**MAC地址表项**对流量进行转发，用于VXLAN和**VLAN**之间的二层通讯，也可以用于同一VXLAN网络内终端的同子网通信
 
-### IP Gateway
-IP Gateway三层转发模式，VTEP设备通过查找**ARP表项**对流量进行转发，用于VXLAN和外部**IP**网络之间的三层通讯，也可以用于VXLAN网络内终端的跨子网通信
+### L3 Gateway
+L3 Gateway三层转发模式，VTEP设备通过查找**ARP表项**对流量进行转发，用于VXLAN和外部**IP**网络之间的三层通讯，也可以用于VXLAN网络内终端的跨子网通信
 
 ### VBDIF
 VBDIF：类似于VLANIF。VBDIF接口在VXLAN三层网关上配置，是基于BD创建的三层逻辑接口
@@ -75,26 +75,6 @@ VAP：虚拟接入点（Virtual Access Point），实现VXLAN的业务接入，�
 VAP的两种接入方式：
 1. 二层子接口方式。类似单臂路由，例如在VTEP创建二层子接口关联BD 10，这个子接口下的特定流量就会被注入到BD 10
 2. VLAN绑定方式。例如在VTEP配置VLAN 10与广播域BD 10关联，则所有VLAN 10的流量会被注入到BD 10
-
-VAP有两种配置方式：
-二层子接口方式接入，例如在sw1创建二层子接口关联BD10，则这个子接口下的特定流量会被注入到BD10
-VLAN绑定方式接入，例如在sw2配置VLAN10与广播域BD10关联，则所有VLAN10的流量会被注入到BD10
-
-### VSI
-VSI：虚拟交换实例（Virtual Switch Instance），是在虚拟交换机上创建的逻辑实体。可以把同一个VSI的VXLAN网络看做一个大二层VXLAN Domain
-
-每个 VSI 可以看作是一个独立的逻辑交换机，具有自己的端口、VLAN 设置和交换规则。在虚拟化环境中，多个 VSI 可以共享同一个物理交换机，并且能够隔离不同的虚拟网络流量
-
-VSI具备传统以太网交换机的所有功能，如MAC地址表、老化机制等。VSI与VXLAN需一一对应
-
-### VSI-Interface
-VSI ：虚拟交换接口（Virtual Switch Interface），这是指连接虚拟交换机和物理网络设备（如物理交换机或路由器）的逻辑接口。是VXLAN内虚拟机的网关，用于处理跨VXLAN网络的报文转发
-
-一个VXLAN网络对应一个VSI-Interface
-
-### AC
-AC：接入链路（Attachment Circuit），就是接入链路，接入VTEP的逻辑链路。也称以太网服务实例（Service Instannce），指定该服务的感兴趣数据流（通常基于VLAN），指定感兴趣六在哪个VSI中转发
-![image](https://github.com/Cookie-ch/note/assets/79464052/72b256fb-f65b-4e36-9bf3-d43b9d714eac)
 
 ## VXLAN的实现原理
 ![image](https://github.com/Cookie-ch/note/assets/79464052/9e3e5bec-843f-4f1e-a6d3-8826e709b97b)
@@ -117,10 +97,7 @@ VTEP接收到BD内来自本地的数据帧，将数据帧的源MAC地址添加�
 
 ![image](https://github.com/Cookie-ch/note/assets/79464052/63991d2b-12bd-476c-aeca-081996fc5810)
 
-
-## VXLAN运行机制
-
-### VXLAN隧道的建立与关联
+## VXLAN隧道的建立与关联
 VXLAN隧道由一堆VTEP确定，报文在VTEP设备进行封装之后再VXLAN隧道中依靠路由进行传输。只要VXLAN隧道的两端VTEP是三层路由可达的，VXLAN隧道就可以建立成功
 
 #### VXLAN隧道建立的方式
