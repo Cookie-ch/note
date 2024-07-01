@@ -1,18 +1,13 @@
 # VXLAN
-## 背景
-传统的二层网络面临VLAN资源不足、虚机迁移业务部中断等挑战，并且多数据中心之间要通过实现三层网络连接的两个二层网络互通
 
 ## 什么是VXLAN
 VXLAN（Virtual Extensible LAN）可扩展虚拟局域网。是基于IP网络、采用“MAC in UDP”封装形式的二层VPN技术，可以基于已有的网络，为分散的物理站点提供二层互联，并能够为不同的租户提供业务隔离
 
 VLAN的作用是从逻辑上隔离局域网中的设备，VXLAN是将两个局域网打通
 
-**VTEP**（Virtual Tunnel Endpoint）是VXLAN隧道端点，是VXLAN的边缘设备，用于VXLAN报文的封装和解封装。如物理交换机、虚拟交换机、等，可以是独立的物理设备或虚机所在的服务器
-VTEP只支持VXLAN二层转发功能的设备，只能在相同VXLAN内进行二层转发
-
 ## VXLAN的优势
 1. 支持大量的租户：使用24位标识符，最多可支持2^24（16777216）个VXLAN，解决了传统二层网络VLAN资源不足的问题
-2. 虚机迁移需要保证IP、MAC不变：采用MAC in UDP的封装方式，可以保证在传输过程中数据包的MAC地址不变
+2. 虚机迁移需要保证IP、MAC不变：若虚机迁移的两台硬件服务器是在不同的三层网络下，虚拟机从一个子网到另一个子网，IP地址就会变化，可能会造成业务中断。采用MAC in UDP的封装方式，将以太文封装在IP报文上，通过路由在网络中传输，无需关注虚拟机的IP地址，可以保证在传输过程中数据包的MAC地址不变
 3. 易于维护：基于IP网络组建大二层网络，可以充分利用现有的IP网络技术；只有IP核心网络的边缘设备需要进行VXLAN处理，网络中间设备只需根据IP头转发报文
 
 > 二层网络为什么能保证IP不变？
@@ -40,10 +35,11 @@ VTEP只支持VXLAN二层转发功能的设备，只能在相同VXLAN内进行二
 * VXLAN头（8字节）
   * 标记位8bit，其中I位为1时，表示VXLAN头中的VXLAN ID有效
   * VXLAN ID（24bit），又称VNI，网络标识符，不同VXLAN网络中的用户终端不能二层互通
-  * Reserved（8bit），协议保留位
+  * 保留字段，可以做为一些功能性的扩展
 * 原始二层数据，虚机发送的原始以太报文
 
-![image](https://github.com/Cookie-ch/note/assets/79464052/64a062f0-9114-4513-96eb-28be31d3c628)
+![image](https://github.com/Cookie-ch/note/assets/79464052/389c20d9-f2de-4a6e-82d7-3f594d963eda)
+
 
 虚机网关在物理交换机上时，报文会封装外层MAC头
 ![image](https://github.com/Cookie-ch/note/assets/79464052/e7694b2e-85f9-4909-858c-9e8b8ee3911c)
@@ -52,8 +48,22 @@ VTEP只支持VXLAN二层转发功能的设备，只能在相同VXLAN内进行二
 ![image](https://github.com/Cookie-ch/note/assets/79464052/a48839b5-18be-4bad-b557-e3c0509eb53e)
 
 ## 一些特定名词
+### NVE
+NVE：网络虚拟边缘（Network Virtualization Edge），是指承载VXLAN封装和解封装功能的网络设备或模块，是普通网络和VXLAN网络的边界。它负责将数据帧封装为VXLAN封装格式，以便在底层IP网络上进行传输，同时也能够从接收的VXLAN封装中解封原始数据帧
+
+### VTEP
+VTEP：（Virtual Tunnel Endpoint）VXLAN隧道端点，位于VNE中，用于VXLAN报文的封装和解封装。如物理交换机、虚拟交换机、等，可以是独立的物理设备或虚机所在的服务器
+VTEP只支持VXLAN二层转发功能的设备，只能在相同VXLAN内进行二层转发
+
 ### BD
 BD：桥域（Bridge Domain），类似传统网络中采用VLAN划分广播域，在VXLAN网络中一个BD标识一个大二层广播域
+VNI以1:1的方式映射到广播域BD
+
+### L2 Gateway
+L2 Gateway二层转发模式，VTEP通过查找**MAC地址表项**对流量进行转发，用于VXLAN和**VLAN**之间的二层通讯，也可以用于同一VXLAN网络内终端的同子网通信
+
+### IP Gateway
+IP Gateway三层转发模式，VTEP设备通过查找**ARP表项**对流量进行转发，用于VXLAN和外部**IP**网络之间的三层通讯，也可以用于VXLAN网络内终端的跨子网通信
 
 ### VBDIF
 VBDIF：类似于VLANIF。VBDIF接口在VXLAN三层网关上配置，是基于BD创建的三层逻辑接口
@@ -61,7 +71,10 @@ VBDIF：类似于VLANIF。VBDIF接口在VXLAN三层网关上配置，是基于BD
 通过VBDIF接口可以实现不同网段的用户通过VXLAN网络通信，以及VXLAN网络和非VXLAN网络之间的同学，也可以实现二层网络接入三层网络
 
 ### VAP
-VAP：虚拟接入点（Virtual Access Point），实现VXLAN的业务接入。
+VAP：虚拟接入点（Virtual Access Point），实现VXLAN的业务接入，就是普通网络设备
+VAP的两种接入方式：
+1. 二层子接口方式。类似单臂路由，例如在VTEP创建二层子接口关联BD 10，这个子接口下的特定流量就会被注入到BD 10
+2. VLAN绑定方式。例如在VTEP配置VLAN 10与广播域BD 10关联，则所有VLAN 10的流量会被注入到BD 10
 
 VAP有两种配置方式：
 二层子接口方式接入，例如在sw1创建二层子接口关联BD10，则这个子接口下的特定流量会被注入到BD10
@@ -106,17 +119,6 @@ VTEP接收到BD内来自本地的数据帧，将数据帧的源MAC地址添加�
 
 
 ## VXLAN运行机制
-### VXLAN隧道工作模式
-#### L2 Gateway
-L2 Gateway二层转发模式，VTEP通过查找**MAC地址表项**对流量进行转发，用于VXLAN和**VLAN**之间的二层通讯
-
-下图是个例子（左上源MAC和目的MAC没有写）
-![image](https://github.com/Cookie-ch/note/assets/79464052/560ead03-37a3-4597-9eed-12729b2f07ae)
-
-
-#### IP Gateway
-IP Gateway三层转发模式，VTEP设备通过查找**ARP表项**对流量进行转发，用于VXLAN和外部**IP**网络之间的三层通讯
-
 
 ### VXLAN隧道的建立与关联
 VXLAN隧道由一堆VTEP确定，报文在VTEP设备进行封装之后再VXLAN隧道中依靠路由进行传输。只要VXLAN隧道的两端VTEP是三层路由可达的，VXLAN隧道就可以建立成功
